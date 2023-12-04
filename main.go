@@ -2,20 +2,31 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"sync"
 
-	fileIO "github.com/harturk/go-first/fileIO"
+	"github.com/harturk/go-first/api"
 )
 
 func main() {
-	rootPath, _ := os.Getwd()
-	filePath := rootPath + `\` + "data" + `\` + "model.txt"
-	content, err := fileIO.ReadFile(filePath)
-	if err != nil {
-		panic(err)
+	currencies := []string{"BTC", "ETH", "BCH"}
+	var waitingGroup sync.WaitGroup
+	// cannot use go, to threadling, in every call because the main function
+	// will ends before the threads. waitgroup prevents this, by doing
+	// something like a sleep but without a fixed time.
+	for _, currency := range currencies {
+		waitingGroup.Add(1)
+		// "Async" function, similar to javacript syntax
+		go func(currency string) {
+			getCurrencyData(currency)
+			waitingGroup.Done()
+		}(currency)
 	}
-	fmt.Println(os.Getwd())
-	fmt.Println(content)
-	var newContent = fmt.Sprintf("Original: %v\n Double Origina: %v%v", content, content, content)
-	fileIO.WriteFile(filePath+".output.txt", newContent)
+	waitingGroup.Wait()
+}
+
+func getCurrencyData(currency string) {
+	rate, err := api.GetRate(currency)
+	if err == nil {
+		fmt.Printf("The rate for %v is %.2f\n", rate.Currency, rate.Price)
+	}
 }
